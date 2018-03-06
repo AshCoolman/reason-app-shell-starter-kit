@@ -7,11 +7,13 @@ type item = {
 type action = 
     | AddItem
     | ToggleItem(int)
-    | UpdateNewTitle(string);
+    | UpdateNewTitle(string)
+    | ToggleCompleted;
 
 type state = {
     newTitle: string,
-    items: list(item)
+    items: list(item),
+    isCompleted:bool
 };
 let valueFromEvent = (evt) : string => (
   evt
@@ -50,11 +52,12 @@ let make = ( _children) => {
     newTitle: "A new title",
     items: [
         {id: 0, title: "Write somethings to do", completed: false}
-    ]
+    ],
+    isCompleted: true,
   },
   reducer: (action, state) =>
     switch action {
-    | AddItem => ReasonReact.Update({ newTitle: "", items: [newItem(state.newTitle), ...state.items]})
+    | AddItem => ReasonReact.Update({ ...state, newTitle: "", items: [newItem(state.newTitle), ...state.items]})
     | ToggleItem(id) =>
       let items = List.map(
         (item) =>
@@ -62,10 +65,11 @@ let make = ( _children) => {
             {...item, completed: ! item.completed} : item,
           state.items
         );
-        ReasonReact.Update({...state, items: items})
+      ReasonReact.Update({...state, items: items})
     | UpdateNewTitle(newTitle) => ReasonReact.Update({...state, newTitle:newTitle})
-    },
-  render: ({state: {items, newTitle}, reduce}) => {
+    | ToggleCompleted => ReasonReact.Update({...state, isCompleted: !state.isCompleted})
+  },
+  render: ({state: {items, newTitle, isCompleted}, reduce}) => {
     let numItems = List.length(items);
     let handleKeyUp = (evt) => { 
         if (ReactEventRe.Keyboard.key(evt) == "Enter" ) {
@@ -85,13 +89,21 @@ let make = ( _children) => {
             (str("Add"))
         </button>
     </div>
+    <div>
+        <a href="#" onClick=(reduce((_e) => ToggleCompleted))>
+            (isCompleted ? str("Show completed") : str("Hide completed"))
+        </a>
+    </div>
       <div className="items">
         (
-            List.map((item) => <TodoItem
-                key=(string_of_int(item.id))
-                item
-                onToggle=(reduce(() => ToggleItem(item.id)))
-            />, items) |> Array.of_list |> ReasonReact.arrayToElement 
+            items
+              |> List.filter(({completed}) => !isCompleted ? !completed : true )
+              |> List.map((item) => <TodoItem
+                  key=(string_of_int(item.id))
+                  item
+                  onToggle=(reduce(() => ToggleItem(item.id))) />) 
+              |> Array.of_list 
+              |> ReasonReact.arrayToElement 
         )
       </div>
       <div className="footer">
